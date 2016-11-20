@@ -2,7 +2,7 @@
 # coding: utf-8
 
 import chainer.functions as F
-from chainer import Variable
+from chainer import Variable, optimizers
 import numpy as np
 from sklearn.datasets import fetch_mldata
 from sklearn.cross_validation import train_test_split
@@ -160,6 +160,8 @@ class BBP_agent2(object):
         self.prior_pho_var = np.float32(.05)
         self.model = net.MLP_MNIST_bbp(self.n_in, self.n_hidden1, self.n_hidden2, self.n_out, self.prior_ratio, 
             self.prior_sigma_1, self.prior_sigma_2, self.prior_pho_var)
+        self.optimizer = optimizers.Adam()
+        self.optimizer.setup(self.model)
 
 
     def pD_w(self,Data_indices):
@@ -222,7 +224,8 @@ class BBP_agent2(object):
                     #print("f_batch_grad:{}".format(f_batch.grad))
                     #print("finish_f_backward:{}".format(time.time() - end_f_calc))
                     #print("mu1_grad:{}".format(self.model.mu1.W.grad.shape))                
-                    self.model.update(self.model_num)
+                    #self.model.update(self.model_num)
+                    self.optimizer.update()
                     f_batch_mean += f_batch.data
                 print("f_batch_mean:{}".format(f_batch_mean/float(self.model_num)))
             print(iter_,f_batch.data)

@@ -136,13 +136,14 @@ class BBP_agent(object):
 
 class BBP_agent2(object):
     """docstring for BPP_agent"""
-    def __init__(self, model_num = 3, sample_N = 60000, test_ratio = .25, batch_size = 32, max_iter = 100):
+    def __init__(self, model_num = 3, sample_N = 60000, test_ratio = .25, batch_size = 32, max_iter = 100, lr = 1e-4):
         super(BBP_agent2, self).__init__()
         self.sample_N = sample_N
         self.test_ratio = test_ratio
         self.batch_size = batch_size
         self.max_iter = max_iter
         self.model_num = model_num
+        self.lr = lr
 
     def prepare_data(self):            
         self.tr_x, self.te_x, self.tr_y, self.te_y = mnist_preprocessing(self.sample_N, self.test_ratio)    
@@ -158,9 +159,11 @@ class BBP_agent2(object):
         self.n_hidden2 = 500
         self.n_out = 10
         self.prior_pho_var = np.float32(.05)
-        self.model = net.MLP_MNIST_bbp(self.n_in, self.n_hidden1, self.n_hidden2, self.n_out, self.prior_ratio, 
-            self.prior_sigma_1, self.prior_sigma_2, self.prior_pho_var)
-        self.optimizer = optimizers.Adam()
+        self.model = net.MLP_MNIST_bbp(n_in = self.n_in, n_hidden1 = self.n_hidden1, n_hidden2 = self.n_hidden2, 
+            n_out = self.n_out, lr = self.lr, prior_ratio = self.prior_ratio, 
+            prior_sigma_1 = self.prior_sigma_1, prior_sigma_2 = self.prior_sigma_2, prior_pho_var = self.prior_pho_var)
+        #self.optimizer = optimizers.Adam()
+        self.optimizer = optimizers.SGD(lr = self.lr)
         self.optimizer.setup(self.model)
 
 
@@ -189,7 +192,8 @@ class BBP_agent2(object):
         log_pw = self.prior_ratio * get_gaussianloglikelihood_pw(w,0,self.prior_sigma_1) + (1 - self.prior_ratio) * get_gaussianloglikelihood_pw(w,0,self.prior_sigma_2)
         #log_pw_sum += F.sum(log_pw, axis=1)
         log_pw_sum += F.sum(log_pw)
-        return (log_qw_theta_sum - log_pw_sum) / (self.M * self.model_num)
+        #return (log_qw_theta_sum - log_pw_sum) / (self.M * self.model_num)
+        return (log_qw_theta_sum - log_pw_sum) / self.M
 
     def fit(self):
         now = time.time()
@@ -214,18 +218,21 @@ class BBP_agent2(object):
                     t1 = self.KL_minibatch()
                 
                     f_batch = t1 - t2
-                    print("t1:{}".format(t1.data))
-                    print("t2:{}".format(t2.data))
+                    print("KL_t1:{}".format(t1.data))
+                    print("Lh_t2:{}".format(t2.data))
                     end_f_calc = time.time()
                     #print("finish_f_calculation:{}".format(end_f_calc -start_f_calc))
                     #print("f_batch_grad:{}".format(f_batch.grad))
-                #print("mu1_grad:{}".format(self.model.mu1.grad.shape))                
+                    #print("mu1_grad:{}".format(self.model.mu1.grad.shape)) 
+                    print("weight:{}".format(self.model.mu1.W.data[0,:5]))
                     f_batch.backward(retain_grad = True)
+                    print("weight_grad:{}".format(self.model.mu1.W.grad[0,:5]))
                     #print("f_batch_grad:{}".format(f_batch.grad))
                     #print("finish_f_backward:{}".format(time.time() - end_f_calc))
                     #print("mu1_grad:{}".format(self.model.mu1.W.grad.shape))                
-                    #self.model.update(self.model_num)
-                    self.optimizer.update()
+                    self.model.update(self.model_num)
+                    #self.optimizer.update()
+                    print("weight:{}".format(self.model.mu1.W.data[0,:5]))
                     f_batch_mean += f_batch.data
                 print("f_batch_mean:{}".format(f_batch_mean/float(self.model_num)))
             print(iter_,f_batch.data)

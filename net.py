@@ -10,15 +10,15 @@ import numpy as np
 class MLP_MNIST_bbp(Chain):
     def __init__(self, n_in = 784, n_hidden1 = 1200, n_hidden2 = 1200, n_out = 10, lr = 1e-4, prior_ratio = 0.5, prior_sigma_1 = np.exp(-1), prior_sigma_2 = np.exp(-7), prior_pho_var = .05):
         super(MLP_MNIST_bbp, self).__init__(
-            w1 = L.Linear(n_in, n_hidden1),
-            w2 = L.Linear(n_hidden1, n_hidden2),
-            w3 = L.Linear(n_hidden2, n_out),
             mu1 = L.Linear(n_in, n_hidden1),
             mu2 = L.Linear(n_hidden1, n_hidden2),
             mu3 = L.Linear(n_hidden2, n_out),
             pho1 = L.Linear(n_in, n_hidden1),
             pho2 = L.Linear(n_hidden1, n_hidden2),
             pho3 = L.Linear(n_hidden2, n_out),
+            w1 = L.Linear(n_in, n_hidden1),
+            w2 = L.Linear(n_hidden1, n_hidden2),
+            w3 = L.Linear(n_hidden2, n_out),
             )
         self.n_in = n_in
         self.n_hidden1 = n_hidden1
@@ -123,15 +123,21 @@ class MLP_MNIST_bbp(Chain):
         """
         for m,w in zip([self.mu1,self.mu2,self.mu3],[self.w1,self.w2,self.w3]):
             delta_w = m.W.grad + w.W.grad
+            #delta_w = m.W.grad# + w.W.grad
             m.W = m.W - self.lr * delta_w
             delta_b = m.b.grad + w.b.grad
+            #delta_b = m.b.grad# + w.b.grad
             m.b = m.b - self.lr * delta_b
 
         for pho,w,eps in zip([self.pho1,self.pho2,self.pho3],[self.w1,self.w2,self.w3],[self.eps1,self.eps2,self.eps3]):
             delta_w = pho.W.grad + w.W.grad * eps[0] / (1 + F.exp(-1*pho.W))
-            pho.W = pho.W - self.lr * delta_w / np.float32(model_num)
+            #delta_w = pho.W.grad# + w.W.grad * eps[0] / (1 + F.exp(-1*pho.W))
+            #pho.W = pho.W - self.lr * delta_w / np.float32(model_num)
+            pho.W = pho.W - self.lr * delta_w
             delta_b = pho.b.grad + w.b.grad * eps[1] / (1 + F.exp(-1*pho.b))
-            pho.b = pho.b - self.lr * delta_b / np.float32(model_num)
+            #delta_b = pho.b.grad# + w.b.grad * eps[1] / (1 + F.exp(-1*pho.b))
+            #pho.b = pho.b - self.lr * delta_b / np.float32(model_num)
+            pho.b = pho.b - self.lr * delta_b
         #print("update:{}".format(self.mu1.grad.shape))
         #print("mu1_shape:{}".format(self.mu1.shape))
 
